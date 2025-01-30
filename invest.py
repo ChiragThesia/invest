@@ -24,8 +24,19 @@ capital_raised = st.sidebar.number_input("Total Capital Raised to Date ($):", mi
 pre_money_valuation = st.sidebar.number_input("Pre-Money Valuation ($):", min_value=0, value=default_pre_money_valuation, step=10_000_000, format="%d")
 
 # New input field for manual valuation adjustment
-custom_valuation = st.sidebar.number_input("Enter a custom valuation ($):", min_value=100_000_000, step=100_000_000, format="%d")
+custom_valuation_str = st.sidebar.text_input("Enter a custom valuation (e.g., 1B, 500M, 1000000000):", "1B")
 time_horizon = st.sidebar.number_input("Enter the time horizon (years):", min_value=1, step=1, format="%d")
+
+# Function to convert user input into numerical valuation
+def parse_valuation(input_str):
+    multipliers = {"B": 1_000_000_000, "M": 1_000_000}
+    input_str = input_str.replace(",", "").strip().upper()
+    for key, value in multipliers.items():
+        if input_str.endswith(key):
+            return int(float(input_str[:-1]) * value)
+    return int(input_str)
+
+custom_valuation = parse_valuation(custom_valuation_str)
 
 # Tax rates
 capital_gains_tax = st.sidebar.slider("Capital Gains Tax (%):", min_value=0.0, max_value=50.0, value=default_capital_gains_tax) / 100

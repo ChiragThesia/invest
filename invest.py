@@ -36,7 +36,17 @@ def parse_valuation(input_str):
             return int(float(input_str[:-1]) * value)
     return int(input_str)
 
+# Function to format valuation back into readable form
+def format_valuation(value):
+    if value >= 1_000_000_000:
+        return f"{value / 1_000_000_000:.1f}B"
+    elif value >= 1_000_000:
+        return f"{value / 1_000_000:.1f}M"
+    else:
+        return f"${value:,}"
+
 custom_valuation = parse_valuation(custom_valuation_str)
+formatted_custom_valuation = format_valuation(custom_valuation)
 
 # Tax rates
 capital_gains_tax = st.sidebar.slider("Capital Gains Tax (%):", min_value=0.0, max_value=50.0, value=default_capital_gains_tax) / 100
@@ -90,7 +100,7 @@ if investments:
         )
         results.append({
             "Investment ($)": f"${investment:,}",
-            "Custom Valuation ($)": f"${valuation:,}",
+            "Custom Valuation": formatted_custom_valuation,
             "Projected After-Tax Return ($)": f"${after_tax_return:,.2f}"
         })
 
@@ -99,7 +109,7 @@ if investments:
 
     # Chart
     st.subheader("Comparison of Returns Across Investment Amounts")
-    chart_data = df_results.pivot(index="Custom Valuation ($)", columns="Investment ($)", values="Projected After-Tax Return ($)")
+    chart_data = df_results.pivot(index="Custom Valuation", columns="Investment ($)", values="Projected After-Tax Return ($)")
     st.bar_chart(chart_data)
 else:
     st.warning("Please enter at least one investment amount.")

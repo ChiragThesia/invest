@@ -23,6 +23,10 @@ safe_raise = st.sidebar.number_input("SAFE Raise ($):", min_value=0, value=defau
 capital_raised = st.sidebar.number_input("Total Capital Raised to Date ($):", min_value=0, value=default_capital_raised, step=1_000_000, format="%d")
 pre_money_valuation = st.sidebar.number_input("Pre-Money Valuation ($):", min_value=0, value=default_pre_money_valuation, step=10_000_000, format="%d")
 
+# New input field for manual valuation adjustment
+custom_valuation = st.sidebar.number_input("Enter a custom valuation ($):", min_value=100_000_000, step=100_000_000, format="%d")
+time_horizon = st.sidebar.number_input("Enter the time horizon (years):", min_value=1, step=1, format="%d")
+
 # Tax rates
 capital_gains_tax = st.sidebar.slider("Capital Gains Tax (%):", min_value=0.0, max_value=50.0, value=default_capital_gains_tax) / 100
 medicare_surtax = st.sidebar.slider("Medicare Surtax (%):", min_value=0.0, max_value=10.0, value=default_medicare_surtax) / 100
@@ -66,30 +70,25 @@ st.subheader("Enter multiple investment amounts to compare returns")
 investment_input = st.text_area("Enter investment amounts separated by commas (e.g., 10000, 50000, 100000)")
 investments = [int(i.strip()) for i in investment_input.split(',') if i.strip().isdigit()]
 
-# New input field for manual recalculation
-new_investment = st.number_input("Enter a new investment amount ($) for recalculation:", min_value=1000, step=1000, format="%d")
-if st.button("Recalculate"):
-    investments.append(new_investment)
-
 if investments:
     results = []
     for investment in investments:
-        for tier, (valuation, time_horizon) in VALUATION_TIERS.items():
-            after_tax_return = calculate_after_tax_return(
-                investment, valuation, time_horizon, pre_money_valuation, capital_raised
-            )
-            results.append({
-                "Investment ($)": f"${investment:,}",
-                "Valuation Tier": tier,
-                "Projected After-Tax Return ($)": f"${after_tax_return:,.2f}"
-            })
+        valuation = custom_valuation if custom_valuation else pre_money_valuation
+        after_tax_return = calculate_after_tax_return(
+            investment, valuation, time_horizon, pre_money_valuation, capital_raised
+        )
+        results.append({
+            "Investment ($)": f"${investment:,}",
+            "Custom Valuation ($)": f"${valuation:,}",
+            "Projected After-Tax Return ($)": f"${after_tax_return:,.2f}"
+        })
 
     df_results = pd.DataFrame(results)
     st.dataframe(df_results)
 
     # Chart
     st.subheader("Comparison of Returns Across Investment Amounts")
-    chart_data = df_results.pivot(index="Valuation Tier", columns="Investment ($)", values="Projected After-Tax Return ($)")
+    chart_data = df_results.pivot(index="Custom Valuation ($)", columns="Investment ($)", values="Projected After-Tax Return ($)")
     st.bar_chart(chart_data)
 else:
     st.warning("Please enter at least one investment amount.")

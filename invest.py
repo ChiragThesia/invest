@@ -66,6 +66,11 @@ st.subheader("Enter multiple investment amounts to compare returns")
 investment_input = st.text_area("Enter investment amounts separated by commas (e.g., 10000, 50000, 100000)")
 investments = [int(i.strip()) for i in investment_input.split(',') if i.strip().isdigit()]
 
+# New input field for manual recalculation
+new_investment = st.number_input("Enter a new investment amount ($) for recalculation:", min_value=1000, step=1000, format="%d")
+if st.button("Recalculate"):
+    investments.append(new_investment)
+
 if investments:
     results = []
     for investment in investments:

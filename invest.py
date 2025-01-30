@@ -5,10 +5,39 @@ import pandas as pd
 # Helper Functions
 # -------------------
 def parse_dollar_string(dollar_str: str) -> float:
-    """Parse a string like '$25,000,000' or '25,000,000' into a float."""
-    # Strip out common symbols/spaces, convert to float
-    clean_str = dollar_str.replace("$", "").replace(",", "").strip()
-    return float(clean_str)
+    """Parse a string like '25B', '250 million', '$25,000,000', or '25,000,000' into a float."""
+    s = dollar_str.upper().replace("$", "").replace(",", "").strip()
+    # Possible suffixes/keywords and their multipliers
+    multipliers = {
+        "BILLION": 1e9,
+        "B": 1e9,
+        "MILLION": 1e6,
+        "M": 1e6,
+        "THOUSAND": 1e3,
+        "K": 1e3,
+    }
+    multiplier = 1.0
+
+    # Check if the input string ends with or contains any known suffix/keyword
+    for suffix, factor in multipliers.items():
+        if s.endswith(suffix):
+            # e.g. '25B' -> remove 'B'
+            s = s[: -len(suffix)].strip()
+            multiplier = factor
+            break
+        elif suffix in s:
+            # e.g. '250 MILLION' -> remove 'MILLION'
+            s = s.replace(suffix, "").strip()
+            multiplier = factor
+            break
+
+    # if s is empty, default to 1 (meaning 'B', 'million', etc. by itself)
+    if s == "":
+        base_value = 1.0
+    else:
+        base_value = float(s)
+    return base_value * multiplier
+
 
 def format_dollar_value(amount: float) -> str:
     """Format a numeric amount into a string, e.g. 250000000 -> '$250,000,000'."""
@@ -66,7 +95,6 @@ def calculate_after_tax_return(investment, valuation, time_horizon, pre_money_va
     total_taxes = calculate_taxes(investor_value, investment, capital_gains_tax, medicare_surtax)
     return investor_value - total_taxes
 
-
 # -------------------
 # Streamlit App
 # -------------------
@@ -90,6 +118,7 @@ st.sidebar.text("Preferred Return/Year: 8.0%")
 st.sidebar.text("Carry Rate: 20.0%")
 
 # Let the user adjust capital gains tax & medicare surtax
+global capital_gains_tax, medicare_surtax
 capital_gains_tax = st.sidebar.slider("Capital Gains Tax (%):", 0.0, 50.0, default_capital_gains_tax) / 100
 medicare_surtax = st.sidebar.slider("Medicare Surtax (%):", 0.0, 10.0, default_medicare_surtax) / 100
 
@@ -104,11 +133,11 @@ if custom_valuation_str.strip():
     custom_valuation = parse_dollar_string(custom_valuation_str)
 
 # Determine which valuation to use
+# If user provided a custom valuation, use that; otherwise use the tier
 tier_valuation, tier_time_horizon = VALUATION_TIERS[selected_tier]
 if custom_valuation > 0:
-    # If user provided a custom valuation, use that; otherwise use the tier
     valuation_in_use = custom_valuation
-    time_horizon_in_use = tier_time_horizon  # or prompt for a custom horizon as well if desired
+    time_horizon_in_use = tier_time_horizon
 else:
     valuation_in_use = tier_valuation
     time_horizon_in_use = tier_time_horizon
@@ -143,17 +172,18 @@ if investment > 0:
             investment, val, horizon,
             pre_money_valuation, capital_raised
         )
-        # Format the result
+        # We'll store unformatted so we can chart it
         results[tier] = ret
 
     # Convert to a DataFrame for a bar chart
     df = pd.DataFrame.from_dict(results, orient='index', columns=['After-Tax Return'])
-    df['After-Tax Return'] = df['After-Tax Return'].apply(format_dollar_value)
-    st.dataframe(df)
 
-    # If you prefer a numeric bar_chart, we can store numeric (unformatted) in parallel:
-    numeric_results = {k: v for k, v in results.items()}
-    st.bar_chart(pd.DataFrame.from_dict(numeric_results, orient='index', columns=['After-Tax Return']))
+    # We'll display a nice formatted table
+    df_display = df.copy()
+    df_display['After-Tax Return'] = df_display['After-Tax Return'].apply(format_dollar_value)
+    st.dataframe(df_display)
 
+    # Then a numeric bar_chart with the raw values
+    st.bar_chart(df)
 else:
     st.warning("Please enter an investment amount to see projected returns.")
